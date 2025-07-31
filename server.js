@@ -144,6 +144,94 @@ app.put('/api/requests/:id/reject', async (req, res) => {
   res.json(reqObj);
 });
 
+// --- LOAD REQUESTS FUNCTION ---
+async function loadRequests() {
+  try {
+    // Fetch all pending recipients
+    const pendingRecipients = await Recipient.find({ status: 'pending' });
+
+    for (const recipient of pendingRecipients) {
+      // Check if request already exists for this recipient (by name, bloodType, hospital, unitsRequired)
+      const existingRequest = await Request.findOne({
+        recipientName: recipient.name,
+        bloodType: recipient.bloodType,
+        hospital: recipient.hospital,
+        units: recipient.unitsRequired,
+        status: 'pending'
+      });
+      if (!existingRequest) {
+        // Create new request from recipient data
+        const newRequest = new Request({
+          recipientName: recipient.name,
+          bloodType: recipient.bloodType,
+          units: recipient.unitsRequired,
+          hospital: recipient.hospital,
+          urgency: recipient.urgency,
+          status: 'pending',
+          processedBy: null
+        });
+        await newRequest.save();
+      }
+    }
+  } catch (error) {
+    console.error('Error loading requests:', error);
+  }
+}
+
+// --- AI PROCESSING FUNCTION ---
+async function processRequestsAI() {
+  try {
+    // Fetch all pending requests
+    const pendingRequests = await Request.find({ status: 'pending' });
+
+    for (const request of pendingRequests) {
+      // Check inventory for blood type
+      const inventoryItem = await Inventory.findOne({ bloodType: request.bloodType });
+
+      if (inventoryItem && inventoryItem.units >= request.units) {
+        // Approve request
+        request.status = 'approved';
+        request.processedBy = 'Auto Processor';
+        await request.save();
+
+        // Reduce inventory units
+        inventoryItem.units -= request.units;
+        await inventoryItem.save();
+
+        // Also update corresponding recipient status to approved
+        await Recipient.findOneAndUpdate(
+          { name: request.recipientName, bloodType: request.bloodType, hospital: request.hospital, unitsRequired: request.units },
+          { status: 'approved', processedBy: 'Auto Processor' }
+        );
+      } else {
+        // Reject request
+        request.status = 'rejected';
+        request.processedBy = 'Auto Processor';
+        await request.save();
+
+        // Also update corresponding recipient status to rejected
+        await Recipient.findOneAndUpdate(
+          { name: request.recipientName, bloodType: request.bloodType, hospital: request.hospital, unitsRequired: request.units },
+          { status: 'rejected', processedBy: 'Auto Processor' }
+        );
+      }
+    }
+  } catch (error) {
+    console.error('Error processing requests AI:', error);
+  }
+}
+
+// --- API ENDPOINT TO TRIGGER LOAD AND PROCESS ---
+app.post('/api/load-and-process-requests', async (req, res) => {
+  try {
+    await loadRequests();
+    await processRequestsAI();
+    res.json({ message: 'Requests loaded and processed by AI' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- DASHBOARD STATS ENDPOINT ---
 app.get('/api/stats', async (req, res) => {
   const [totalDonors, totalRecipients, inventory, requests] = await Promise.all([
