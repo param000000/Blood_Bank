@@ -1061,7 +1061,7 @@ body::before {
 
     <script>
         // API Base URL
-        const API_BASE = 'https://blood-bank-ol4n.onrender.com//api';
+        const API_BASE = 'https://blood-bank-ol4n.onrender.com';
 
         // Tab Management
         function showTab(tabName) {
@@ -1121,7 +1121,12 @@ body::before {
             }
             
             try {
-                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const response = await fetch(`${API_BASE_URL}/api/donors`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(donorData)
+})
+;
                 const result = await response.json();
                 
                 if (!response.ok) {
@@ -1407,7 +1412,12 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
     }
     
     try {
-        const response = await fetch(`${API_BASE}${endpoint}`, options);
+        const response = await fetch(`${API_BASE_URL}/api/donors`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(donorData)
+})
+;
         const result = await response.json();
         
         console.log('API Response Status:', response.status); // Debug log
