@@ -879,7 +879,6 @@ body::before {
             <button class="nav-tab" onclick="showTab('donors')">Donors</button>
             <button class="nav-tab" onclick="showTab('recipients')">Recipients</button>
             <button class="nav-tab" onclick="showTab('inventory')">Inventory</button>
-            <button class="nav-tab" onclick="showTab('requests')">Requests</button>
         </div>
 
         <div id="dashboard" class="tab-content active">
@@ -896,10 +895,6 @@ body::before {
                 <div class="stat-card">
                     <h3 id="totalUnits">0</h3>
                     <p>Blood Units Available</p>
-                </div>
-                <div class="stat-card">
-                    <h3 id="pendingRequests">0</h3>
-                    <p>Pending Requests</p>
                 </div>
             </div>
             <div id="bloodTypeStats" class="cards-container">
@@ -1049,13 +1044,6 @@ body::before {
                 <!-- Inventory will be populated here -->
             </div>
         </div>
-
-        <div id="requests" class="tab-content">
-            <h2>Blood Requests</h2>
-            <div id="requestsAlert"></div>
-            <div id="requestsList" class="cards-container">
-                <!-- Requests will be populated here -->
-            </div>
         </div>
     </div>
 
@@ -1087,9 +1075,6 @@ body::before {
                     break;
                 case 'inventory':
                     loadInventory();
-                    break;
-                case 'requests':
-                    loadRequests();
                     break;
             }
         }
@@ -1154,7 +1139,6 @@ body::before {
                 document.getElementById('totalDonors').textContent = stats.totalDonors;
                 document.getElementById('totalRecipients').textContent = stats.totalRecipients;
                 document.getElementById('totalUnits').textContent = stats.totalUnits;
-                document.getElementById('pendingRequests').textContent = stats.pendingRequests;
                 
                 // Load inventory for blood type stats
                 const inventory = await apiRequest('/inventory');
@@ -1165,17 +1149,15 @@ body::before {
                 
                 // Fallback: try to load individual endpoints if stats endpoint fails
                 try {
-                    const [donors, recipients, inventory, requests] = await Promise.all([
+                    const [donors, recipients, inventory] = await Promise.all([
                         apiRequest('/donors'),
                         apiRequest('/recipients'),
-                        apiRequest('/inventory'),
-                        apiRequest('/requests')
+                        apiRequest('/inventory')
                     ]);
                     
                     document.getElementById('totalDonors').textContent = donors.length;
                     document.getElementById('totalRecipients').textContent = recipients.length;
                     document.getElementById('totalUnits').textContent = inventory.reduce((sum, item) => sum + item.units, 0);
-                    document.getElementById('pendingRequests').textContent = requests.filter(r => r.status === 'pending').length;
                     
                     displayBloodTypeStats(inventory);
                 } catch (fallbackError) {
@@ -1276,58 +1258,7 @@ body::before {
                 </div>
             `).join('');
         }
-
-        // Request Functions
-        async function loadRequests() {
-            try {
-                const requests = await apiRequest('/requests');
-                displayRequests(requests);
-            } catch (error) {
-                console.error('Failed to load requests:', error);
-            }
-        }
-
-        function displayRequests(requests) {
-            const container = document.getElementById('requestsList');
-            container.innerHTML = requests.map(request => `
-                <div class="card">
-                    <h3>${request.recipientName}</h3>
-                    <div class="blood-type">${request.bloodType}</div>
-                    <p><strong>Units:</strong> ${request.units}</p>
-                    <p><strong>Hospital:</strong> ${request.hospital}</p>
-                    <p><strong>Urgency:</strong> ${request.urgency}</p>
-                    <p><strong>Status:</strong> ${request.status}</p>
-                    <p><strong>Requested:</strong> ${formatDate(request.createdAt)}</p>
-                    ${request.status === 'pending' && request.processedBy !== 'Auto Processor' ? `
-                        <button class="btn" onclick="approveRequest('${request._id}')">Approve</button>
-                        <button class="btn btn-secondary" onclick="rejectRequest('${request._id}')">Reject</button>
-                    ` : ''}
-                </div>
-            `).join('');
-        }
-
-        async function approveRequest(requestId) {
-            try {
-                await apiRequest(`/requests/${requestId}/approve`, 'PUT');
-                showAlert('requestsAlert', 'Request approved successfully!');
-                loadRequests();
-                loadDashboard();
-            } catch (error) {
-                showAlert('requestsAlert', error.message, 'error');
-            }
-        }
-
-        async function rejectRequest(requestId) {
-            try {
-                await apiRequest(`/requests/${requestId}/reject`, 'PUT');
-                showAlert('requestsAlert', 'Request rejected successfully!');
-                loadRequests();
-                loadDashboard();
-            } catch (error) {
-                showAlert('requestsAlert', error.message, 'error');
-            }
-        }
-
+        // Request Functions for future scope
         // Form Handlers
         // Donor Form Handler
         document.getElementById('donorForm').addEventListener('submit', async (e) => {
