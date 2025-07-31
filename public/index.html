@@ -1121,7 +1121,7 @@ body::before {
             }
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/donors`, {
+                const response = await fetch(`${API_BASE}/api/donors`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(donorData)
@@ -1412,7 +1412,7 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/donors`, {
+        const response = await fetch(`${API_BASE}/api/donors`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify(donorData)
