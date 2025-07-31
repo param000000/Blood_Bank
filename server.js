@@ -64,8 +64,8 @@ app.get('/', (req, res) => {
 });
 
 // --- MONGODB CONNECTION ---
-console.log('MONGODB_URL:', process.env.MONGODB_URL); // Debugging line; remove after testing!
-mongoose.connect(process.env.MONGODB_URL, {
+console.log('MONGODB_URI:', process.env.MONGODB_URI); // Debugging line; remove after testing!
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => console.log('MongoDB Connected'))
