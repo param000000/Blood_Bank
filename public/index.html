@@ -1107,7 +1107,7 @@ body::before {
             return new Date(dateString).toLocaleDateString();
         }
 
-        // API Functions
+        // FIXED API Request Function
         async function apiRequest(endpoint, method = 'GET', data = null) {
             const options = {
                 method,
@@ -1121,16 +1121,19 @@ body::before {
             }
             
             try {
-                const response = await fetch(`${API_BASE}/api/donors`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(donorData)
-})
-;
+                const response = await fetch(`${API_BASE}/api${endpoint}`, options);
                 const result = await response.json();
                 
+                console.log('API Response Status:', response.status);
+                console.log('API Response Body:', result);
+                
                 if (!response.ok) {
-                    throw new Error(result.error || 'API request failed');
+                    // Handle validation errors specifically
+                    if (result.details && Array.isArray(result.details)) {
+                        const validationErrors = result.details.map(detail => detail.msg).join(', ');
+                        throw new Error(`Validation failed: ${validationErrors}`);
+                    }
+                    throw new Error(result.error || `HTTP ${response.status}: Request failed`);
                 }
                 
                 return result;
@@ -1141,46 +1144,45 @@ body::before {
         }
 
         // Dashboard Functions
-        // Dashboard Functions - FIXED VERSION
-async function loadDashboard() {
-    try {
-        // Use the stats endpoint from your backend
-        const statsResponse = await apiRequest('/stats');
-        const stats = statsResponse.data;
-        
-        // Update dashboard stats
-        document.getElementById('totalDonors').textContent = stats.totalDonors;
-        document.getElementById('totalRecipients').textContent = stats.totalRecipients;
-        document.getElementById('totalUnits').textContent = stats.totalUnits;
-        document.getElementById('pendingRequests').textContent = stats.pendingRequests;
-        
-        // Load inventory for blood type stats
-        const inventory = await apiRequest('/inventory');
-        displayBloodTypeStats(inventory);
-        
-    } catch (error) {
-        console.error('Failed to load dashboard:', error);
-        
-        // Fallback: try to load individual endpoints if stats endpoint fails
-        try {
-            const [donors, recipients, inventory, requests] = await Promise.all([
-                apiRequest('/donors'),
-                apiRequest('/recipients'),
-                apiRequest('/inventory'),
-                apiRequest('/requests')
-            ]);
-            
-            document.getElementById('totalDonors').textContent = donors.length;
-            document.getElementById('totalRecipients').textContent = recipients.length;
-            document.getElementById('totalUnits').textContent = inventory.reduce((sum, item) => sum + item.units, 0);
-            document.getElementById('pendingRequests').textContent = requests.filter(r => r.status === 'pending').length;
-            
-            displayBloodTypeStats(inventory);
-        } catch (fallbackError) {
-            console.error('Failed to load dashboard with fallback:', fallbackError);
+        async function loadDashboard() {
+            try {
+                // Use the stats endpoint from your backend
+                const statsResponse = await apiRequest('/stats');
+                const stats = statsResponse.data;
+                
+                // Update dashboard stats
+                document.getElementById('totalDonors').textContent = stats.totalDonors;
+                document.getElementById('totalRecipients').textContent = stats.totalRecipients;
+                document.getElementById('totalUnits').textContent = stats.totalUnits;
+                document.getElementById('pendingRequests').textContent = stats.pendingRequests;
+                
+                // Load inventory for blood type stats
+                const inventory = await apiRequest('/inventory');
+                displayBloodTypeStats(inventory);
+                
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+                
+                // Fallback: try to load individual endpoints if stats endpoint fails
+                try {
+                    const [donors, recipients, inventory, requests] = await Promise.all([
+                        apiRequest('/donors'),
+                        apiRequest('/recipients'),
+                        apiRequest('/inventory'),
+                        apiRequest('/requests')
+                    ]);
+                    
+                    document.getElementById('totalDonors').textContent = donors.length;
+                    document.getElementById('totalRecipients').textContent = recipients.length;
+                    document.getElementById('totalUnits').textContent = inventory.reduce((sum, item) => sum + item.units, 0);
+                    document.getElementById('pendingRequests').textContent = requests.filter(r => r.status === 'pending').length;
+                    
+                    displayBloodTypeStats(inventory);
+                } catch (fallbackError) {
+                    console.error('Failed to load dashboard with fallback:', fallbackError);
+                }
+            }
         }
-    }
-}
 
         function displayBloodTypeStats(inventory) {
             const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -1285,24 +1287,24 @@ async function loadDashboard() {
             }
         }
 
-function displayRequests(requests) {
-    const container = document.getElementById('requestsList');
-    container.innerHTML = requests.map(request => `
-        <div class="card">
-            <h3>${request.recipientName}</h3>
-            <div class="blood-type">${request.bloodType}</div>
-            <p><strong>Units:</strong> ${request.units}</p>
-            <p><strong>Hospital:</strong> ${request.hospital}</p>
-            <p><strong>Urgency:</strong> ${request.urgency}</p>
-            <p><strong>Status:</strong> ${request.status}</p>
-            <p><strong>Requested:</strong> ${formatDate(request.createdAt)}</p>
-            ${request.status === 'pending' && request.processedBy !== 'Auto Processor' ? `
-                <button class="btn" onclick="approveRequest('${request._id}')">Approve</button>
-                <button class="btn btn-secondary" onclick="rejectRequest('${request._id}')">Reject</button>
-            ` : ''}
-        </div>
-    `).join('');
-}
+        function displayRequests(requests) {
+            const container = document.getElementById('requestsList');
+            container.innerHTML = requests.map(request => `
+                <div class="card">
+                    <h3>${request.recipientName}</h3>
+                    <div class="blood-type">${request.bloodType}</div>
+                    <p><strong>Units:</strong> ${request.units}</p>
+                    <p><strong>Hospital:</strong> ${request.hospital}</p>
+                    <p><strong>Urgency:</strong> ${request.urgency}</p>
+                    <p><strong>Status:</strong> ${request.status}</p>
+                    <p><strong>Requested:</strong> ${formatDate(request.createdAt)}</p>
+                    ${request.status === 'pending' && request.processedBy !== 'Auto Processor' ? `
+                        <button class="btn" onclick="approveRequest('${request._id}')">Approve</button>
+                        <button class="btn btn-secondary" onclick="rejectRequest('${request._id}')">Reject</button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
 
         async function approveRequest(requestId) {
             try {
@@ -1328,117 +1330,77 @@ function displayRequests(requests) {
 
         // Form Handlers
         // Donor Form Handler
-document.getElementById('donorForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
-        name: document.getElementById('donorName').value.trim(),
-        age: parseInt(document.getElementById('donorAge').value),
-        bloodType: document.getElementById('donorBloodType').value,
-        phone: document.getElementById('donorPhone').value.trim(),
-        email: document.getElementById('donorEmail').value.trim().toLowerCase(),
-        address: document.getElementById('donorAddress').value.trim()
-    };
-    
-    // Client-side validation before sending
-    const errors = [];
-    
-    if (formData.name.length < 2 || formData.name.length > 100) {
-        errors.push('Name must be between 2 and 100 characters');
-    }
-    
-    if (formData.age < 18 || formData.age > 65) {
-        errors.push('Age must be between 18 and 65');
-    }
-    
-    const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-    if (!bloodTypes.includes(formData.bloodType)) {
-        errors.push('Please select a valid blood type');
-    }
-    
-    if (formData.phone.length < 10 || formData.phone.length > 15) {
-        errors.push('Phone number must be between 10 and 15 characters');
-    }
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-        errors.push('Please enter a valid email address');
-    }
-    
-    if (formData.address.length < 10 || formData.address.length > 200) {
-        errors.push('Address must be between 10 and 200 characters');
-    }
-    
-    if (errors.length > 0) {
-        showAlert('donorAlert', 'Validation errors: ' + errors.join(', '), 'error');
-        return;
-    }
-    
-    try {
-        console.log('Sending donor data:', formData); // Debug log
-        const response = await apiRequest('/donors', 'POST', formData);
-        console.log('Response:', response); // Debug log
-        
-        showAlert('donorAlert', 'Donor registered successfully!');
-        e.target.reset();
-        loadDonors();
-        loadDashboard();
-    } catch (error) {
-        console.error('Error details:', error); // Debug log
-        
-        // Enhanced error handling
-        if (error.message && error.message.includes('validation')) {
-            showAlert('donorAlert', `Validation failed. Please check all fields and try again. Error: ${error.message}`, 'error');
-        } else if (error.message && error.message.includes('email already exists')) {
-            showAlert('donorAlert', 'A donor with this email address already exists.', 'error');
-        } else {
-            showAlert('donorAlert', `Failed to register donor: ${error.message}`, 'error');
-        }
-    }
-});
-
-// Enhanced API Request Function with Better Error Handling
-async function apiRequest(endpoint, method = 'GET', data = null) {
-    const options = {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    };
-    
-    if (data) {
-        options.body = JSON.stringify(data);
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE}/api/donors`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(donorData)
-})
-;
-        const result = await response.json();
-        
-        console.log('API Response Status:', response.status); // Debug log
-        console.log('API Response Body:', result); // Debug log
-        
-        if (!response.ok) {
-            // Handle validation errors specifically
-            if (result.details && Array.isArray(result.details)) {
-                const validationErrors = result.details.map(detail => detail.msg).join(', ');
-                throw new Error(`Validation failed: ${validationErrors}`);
+        document.getElementById('donorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('donorName').value.trim(),
+                age: parseInt(document.getElementById('donorAge').value),
+                bloodType: document.getElementById('donorBloodType').value,
+                phone: document.getElementById('donorPhone').value.trim(),
+                email: document.getElementById('donorEmail').value.trim().toLowerCase(),
+                address: document.getElementById('donorAddress').value.trim()
+            };
+            
+            // Client-side validation before sending
+            const errors = [];
+            
+            if (formData.name.length < 2 || formData.name.length > 100) {
+                errors.push('Name must be between 2 and 100 characters');
             }
-            throw new Error(result.error || `HTTP ${response.status}: Request failed`);
-        }
-        
-        return result;
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-    }
-}
+            
+            if (formData.age < 18 || formData.age > 65) {
+                errors.push('Age must be between 18 and 65');
+            }
+            
+            const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+            if (!bloodTypes.includes(formData.bloodType)) {
+                errors.push('Please select a valid blood type');
+            }
+            
+            if (formData.phone.length < 10 || formData.phone.length > 15) {
+                errors.push('Phone number must be between 10 and 15 characters');
+            }
+            
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(formData.email)) {
+                errors.push('Please enter a valid email address');
+            }
+            
+            if (formData.address.length < 10 || formData.address.length > 200) {
+                errors.push('Address must be between 10 and 200 characters');
+            }
+            
+            if (errors.length > 0) {
+                showAlert('donorAlert', 'Validation errors: ' + errors.join(', '), 'error');
+                return;
+            }
+            
+            try {
+                console.log('Sending donor data:', formData);
+                const response = await apiRequest('/donors', 'POST', formData);
+                console.log('Response:', response);
+                
+                showAlert('donorAlert', 'Donor registered successfully!');
+                e.target.reset();
+                loadDonors();
+                loadDashboard();
+            } catch (error) {
+                console.error('Error details:', error);
+                
+                // Enhanced error handling
+                if (error.message && error.message.includes('validation')) {
+                    showAlert('donorAlert', `Validation failed. Please check all fields and try again. Error: ${error.message}`, 'error');
+                } else if (error.message && error.message.includes('email already exists')) {
+                    showAlert('donorAlert', 'A donor with this email address already exists.', 'error');
+                } else {
+                    showAlert('donorAlert', `Failed to register donor: ${error.message}`, 'error');
+                }
+            }
+        });
 
+        // Recipient Form Handler
         document.getElementById('recipientForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -1463,6 +1425,7 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
             }
         });
 
+        // Inventory Form Handler
         document.getElementById('inventoryForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
