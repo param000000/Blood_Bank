@@ -166,4 +166,4 @@ app.get('/api/stats', async (req, res) => {
 
 // --- START SERVER ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running on https://blood-bank-ol4n.onrender.com/:${PORT}`));
