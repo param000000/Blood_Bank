@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,6 +7,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 
 // --- MODELS ---
+
 const donorSchema = new mongoose.Schema({
   name: String,
   age: Number,
@@ -15,6 +17,7 @@ const donorSchema = new mongoose.Schema({
   address: String,
   createdAt: { type: Date, default: Date.now }
 });
+
 const recipientSchema = new mongoose.Schema({
   name: String,
   age: Number,
@@ -23,23 +26,25 @@ const recipientSchema = new mongoose.Schema({
   hospital: String,
   unitsRequired: Number,
   urgency: String,
-  status: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   processedBy: { type: String, default: null },
   createdAt: { type: Date, default: Date.now }
 });
+
 const inventorySchema = new mongoose.Schema({
   bloodType: String,
   units: Number,
   expiryDate: Date,
   createdAt: { type: Date, default: Date.now }
 });
+
 const requestSchema = new mongoose.Schema({
   recipientName: String,
   bloodType: String,
   units: Number,
   hospital: String,
   urgency: String,
-  status: { type: String, enum: ['pending','approved','rejected'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
   processedBy: { type: String, default: null },
   createdAt: { type: Date, default: Date.now }
 });
@@ -50,32 +55,48 @@ const Inventory = mongoose.model('Inventory', inventorySchema);
 const Request = mongoose.model('Request', requestSchema);
 
 // --- APP INITIALIZATION ---
+
 const app = express();
+
 app.use(cors());
 app.use(bodyParser.json());
 
 // --- SERVE FRONTEND ---
-// Serve static files in the "public" folder (like your index.html)
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Optional: Serve index.html when visiting root "/"
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- MONGODB CONNECTION ---
-console.log('MONGODB_URI:', process.env.MONGODB_URI); // Debugging line; remove after testing!
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log('MongoDB Connected'))
-  .catch(err => { console.error('MongoDB Error:', err); process.exit(1); });
-
-// --- DONOR ENDPOINTS ---
-app.get('/api/donors', async (req, res) => {
-  const donors = await Donor.find().sort({createdAt:-1});
-  res.json(donors);
+// SPA fallback route - serve index.html for all unmatched routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// --- MONGODB CONNECTION ---
+
+console.log('MONGODB_URI:', process.env.MONGODB_URI);
+
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => {
+    console.error('MongoDB Error:', err);
+    process.exit(1);
+  });
+
+// --- API ENDPOINTS ---
+
+// Donors
+app.get('/api/donors', async (req, res) => {
+  try {
+    const donors = await Donor.find().sort({ createdAt: -1 });
+    res.json(donors);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/donors', async (req, res) => {
   try {
     const donor = new Donor(req.body);
@@ -90,11 +111,16 @@ app.post('/api/donors', async (req, res) => {
   }
 });
 
-// --- RECIPIENT ENDPOINTS ---
+// Recipients
 app.get('/api/recipients', async (req, res) => {
-  const recipients = await Recipient.find().sort({createdAt:-1});
-  res.json(recipients);
+  try {
+    const recipients = await Recipient.find().sort({ createdAt: -1 });
+    res.json(recipients);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
+
 app.post('/api/recipients', async (req, res) => {
   try {
     const recipient = new Recipient(req.body);
@@ -105,11 +131,16 @@ app.post('/api/recipients', async (req, res) => {
   }
 });
 
-// --- INVENTORY ENDPOINTS ---
+// Inventory
 app.get('/api/inventory', async (req, res) => {
-  const inventory = await Inventory.find().sort({createdAt:-1});
-  res.json(inventory);
+  try {
+    const inventory = await Inventory.find().sort({ createdAt: -1 });
+    res.json(inventory);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
+
 app.post('/api/inventory', async (req, res) => {
   try {
     const item = new Inventory(req.body);
@@ -120,11 +151,16 @@ app.post('/api/inventory', async (req, res) => {
   }
 });
 
-// --- REQUEST ENDPOINTS ---
+// Requests
 app.get('/api/requests', async (req, res) => {
-  const requests = await Request.find().sort({createdAt:-1});
-  res.json(requests);
+  try {
+    const requests = await Request.find().sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
+
 app.post('/api/requests', async (req, res) => {
   try {
     const request = new Request(req.body);
@@ -134,24 +170,39 @@ app.post('/api/requests', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
+
 // Approve/Reject
 app.put('/api/requests/:id/approve', async (req, res) => {
-  const reqObj = await Request.findByIdAndUpdate(req.params.id, {status: 'approved', processedBy: 'Auto Processor'}, {new:true});
-  res.json(reqObj);
+  try {
+    const reqObj = await Request.findByIdAndUpdate(
+      req.params.id,
+      { status: 'approved', processedBy: 'Auto Processor' },
+      { new: true }
+    );
+    res.json(reqObj);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
+
 app.put('/api/requests/:id/reject', async (req, res) => {
-  const reqObj = await Request.findByIdAndUpdate(req.params.id, {status: 'rejected', processedBy: 'Auto Processor'}, {new:true});
-  res.json(reqObj);
+  try {
+    const reqObj = await Request.findByIdAndUpdate(
+      req.params.id,
+      { status: 'rejected', processedBy: 'Auto Processor' },
+      { new: true }
+    );
+    res.json(reqObj);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- LOAD REQUESTS FUNCTION ---
 async function loadRequests() {
   try {
-    // Fetch all pending recipients
     const pendingRecipients = await Recipient.find({ status: 'pending' });
-
     for (const recipient of pendingRecipients) {
-      // Check if request already exists for this recipient (by name, bloodType, hospital, unitsRequired)
       const existingRequest = await Request.findOne({
         recipientName: recipient.name,
         bloodType: recipient.bloodType,
@@ -160,7 +211,6 @@ async function loadRequests() {
         status: 'pending'
       });
       if (!existingRequest) {
-        // Create new request from recipient data
         const newRequest = new Request({
           recipientName: recipient.name,
           bloodType: recipient.bloodType,
@@ -181,11 +231,9 @@ async function loadRequests() {
 // --- AI PROCESSING FUNCTION ---
 async function processRequestsAI() {
   try {
-    // Fetch all pending requests
     const pendingRequests = await Request.find({ status: 'pending' });
 
     for (const request of pendingRequests) {
-      // Check inventory for blood type
       const inventoryItem = await Inventory.findOne({ bloodType: request.bloodType });
 
       if (inventoryItem && inventoryItem.units >= request.units) {
@@ -198,10 +246,18 @@ async function processRequestsAI() {
         inventoryItem.units -= request.units;
         await inventoryItem.save();
 
-        // Also update corresponding recipient status to approved
+        // Update corresponding recipient status
         await Recipient.findOneAndUpdate(
-          { name: request.recipientName, bloodType: request.bloodType, hospital: request.hospital, unitsRequired: request.units },
-          { status: 'approved', processedBy: 'Auto Processor' }
+          {
+            name: request.recipientName,
+            bloodType: request.bloodType,
+            hospital: request.hospital,
+            unitsRequired: request.units
+          },
+          {
+            status: 'approved',
+            processedBy: 'Auto Processor'
+          }
         );
       } else {
         // Reject request
@@ -209,10 +265,18 @@ async function processRequestsAI() {
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Also update corresponding recipient status to rejected
+        // Update corresponding recipient status
         await Recipient.findOneAndUpdate(
-          { name: request.recipientName, bloodType: request.bloodType, hospital: request.hospital, unitsRequired: request.units },
-          { status: 'rejected', processedBy: 'Auto Processor' }
+          {
+            name: request.recipientName,
+            bloodType: request.bloodType,
+            hospital: request.hospital,
+            unitsRequired: request.units
+          },
+          {
+            status: 'rejected',
+            processedBy: 'Auto Processor'
+          }
         );
       }
     }
@@ -221,7 +285,7 @@ async function processRequestsAI() {
   }
 }
 
-// --- API ENDPOINT TO TRIGGER LOAD AND PROCESS ---
+// API to trigger load and process
 app.post('/api/load-and-process-requests', async (req, res) => {
   try {
     await loadRequests();
@@ -232,26 +296,33 @@ app.post('/api/load-and-process-requests', async (req, res) => {
   }
 });
 
-// --- DASHBOARD STATS ENDPOINT ---
+// Dashboard stats
 app.get('/api/stats', async (req, res) => {
-  const [totalDonors, totalRecipients, inventory, requests] = await Promise.all([
-    Donor.countDocuments({}),
-    Recipient.countDocuments({}),
-    Inventory.find(),
-    Request.find()
-  ]);
-  const pendingRequests = requests.filter(r => r.status==='pending').length;
-  const totalUnits = inventory.reduce((sum, item)=>sum+item.units,0);
-  res.json({
-    data: {
-      totalDonors,
-      totalRecipients,
-      totalUnits,
-      pendingRequests
-    }
-  });
+  try {
+    const [totalDonors, totalRecipients, inventory, requests] = await Promise.all([
+      Donor.countDocuments({}),
+      Recipient.countDocuments({}),
+      Inventory.find(),
+      Request.find()
+    ]);
+
+    const pendingRequests = requests.filter(r => r.status === 'pending').length;
+    const totalUnits = inventory.reduce((sum, item) => sum + item.units, 0);
+
+    res.json({
+      data: {
+        totalDonors,
+        totalRecipients,
+        totalUnits,
+        pendingRequests
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // --- START SERVER ---
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on https://blood-bank-c6l5.onrender.com/`));
