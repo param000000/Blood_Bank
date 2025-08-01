@@ -926,39 +926,53 @@ textarea:focus {
 
         // API Request Function
         async function apiRequest(endpoint, method = 'GET', data = null) {
-            const options = {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            };
-            
-            if (data) {
-                options.body = JSON.stringify(data);
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api${endpoint}`, options);
-                const result = await response.json();
-                
-                console.log('API Response Status:', response.status);
-                console.log('API Response Body:', result);
-                
-                if (!response.ok) {
-                    // Handle validation errors specifically
-                    if (result.details && Array.isArray(result.details)) {
-                        const validationErrors = result.details.map(detail => detail.msg).join(', ');
-                        throw new Error(`Validation failed: ${validationErrors}`);
-                    }
-                    throw new Error(result.error || `HTTP ${response.status}: Request failed`);
-                }
-                
-                return result;
-            } catch (error) {
-                console.error('API Error:', error);
-                throw error;
-            }
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
         }
+    };
+
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api${endpoint}`, options);
+
+        let result;
+        const contentType = response.headers.get('content-type');
+
+        if (contentType && contentType.includes('application/json')) {
+            // Response is JSON
+            result = await response.json();
+        } else {
+            // Response is not JSON - likely HTML or text error
+            const text = await response.text();
+            // Log raw text for debugging
+            console.error('Non-JSON response:', text);
+            throw new Error(`Non-JSON response received with status ${response.status}`);
+        }
+
+        console.log('API Response Status:', response.status);
+        console.log('API Response Body:', result);
+
+        if (!response.ok) {
+            // Handle validation errors specifically
+            if (result.details && Array.isArray(result.details)) {
+                const validationErrors = result.details.map(detail => detail.msg).join(', ');
+                throw new Error(`Validation failed: ${validationErrors}`);
+            }
+            throw new Error(result.error || `HTTP ${response.status}: Request failed`);
+        }
+
+        return result;
+    } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+    }
+}
+
 
         // Dashboard Functions
         async function loadDashboard() {
