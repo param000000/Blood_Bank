@@ -166,7 +166,7 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// Approve/Reject Requests
+// Approve requests
 app.put('/api/requests/:id/approve', async (req, res) => {
   try {
     const updatedRequest = await Request.findByIdAndUpdate(
@@ -180,6 +180,7 @@ app.put('/api/requests/:id/approve', async (req, res) => {
   }
 });
 
+// Reject requests
 app.put('/api/requests/:id/reject', async (req, res) => {
   try {
     const updatedRequest = await Request.findByIdAndUpdate(
@@ -193,8 +194,7 @@ app.put('/api/requests/:id/reject', async (req, res) => {
   }
 });
 
-// --- Helper Functions ---
-
+// Load requests helper function
 async function loadRequests() {
   try {
     const pendingRecipients = await Recipient.find({ status: 'pending' });
@@ -224,19 +224,25 @@ async function loadRequests() {
   }
 }
 
+// AI process requests function
 async function processRequestsAI() {
   try {
     const pendingRequests = await Request.find({ status: 'pending' });
+
     for (const request of pendingRequests) {
       const inventoryItem = await Inventory.findOne({ bloodType: request.bloodType });
+
       if (inventoryItem && inventoryItem.units >= request.units) {
+        // Approve
         request.status = 'approved';
         request.processedBy = 'Auto Processor';
         await request.save();
 
+        // Update inventory units
         inventoryItem.units -= request.units;
         await inventoryItem.save();
 
+        // Update recipient status
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -247,10 +253,12 @@ async function processRequestsAI() {
           { status: 'approved', processedBy: 'Auto Processor' }
         );
       } else {
+        // Reject
         request.status = 'rejected';
         request.processedBy = 'Auto Processor';
         await request.save();
 
+        // Update recipient status
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -267,6 +275,7 @@ async function processRequestsAI() {
   }
 }
 
+// API to trigger load and process
 app.post('/api/load-and-process-requests', async (req, res) => {
   try {
     await loadRequests();
@@ -277,7 +286,7 @@ app.post('/api/load-and-process-requests', async (req, res) => {
   }
 });
 
-// Dashboard stats
+// Dashboard stats endpoint
 app.get('/api/stats', async (req, res) => {
   try {
     const [totalDonors, totalRecipients, inventory, requests] = await Promise.all([
