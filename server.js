@@ -69,7 +69,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// SPA fallback route - serve index.html for all unmatched routes
+// SPA fallback route to serve frontend routes correctly
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -171,15 +171,15 @@ app.post('/api/requests', async (req, res) => {
   }
 });
 
-// Approve/Reject
+// Approve/Reject Requests
 app.put('/api/requests/:id/approve', async (req, res) => {
   try {
-    const reqObj = await Request.findByIdAndUpdate(
+    const updatedRequest = await Request.findByIdAndUpdate(
       req.params.id,
       { status: 'approved', processedBy: 'Auto Processor' },
       { new: true }
     );
-    res.json(reqObj);
+    res.json(updatedRequest);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -187,18 +187,19 @@ app.put('/api/requests/:id/approve', async (req, res) => {
 
 app.put('/api/requests/:id/reject', async (req, res) => {
   try {
-    const reqObj = await Request.findByIdAndUpdate(
+    const updatedRequest = await Request.findByIdAndUpdate(
       req.params.id,
       { status: 'rejected', processedBy: 'Auto Processor' },
       { new: true }
     );
-    res.json(reqObj);
+    res.json(updatedRequest);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// --- LOAD REQUESTS FUNCTION ---
+// --- Helper functions ---
+
 async function loadRequests() {
   try {
     const pendingRecipients = await Recipient.find({ status: 'pending' });
@@ -228,7 +229,6 @@ async function loadRequests() {
   }
 }
 
-// --- AI PROCESSING FUNCTION ---
 async function processRequestsAI() {
   try {
     const pendingRequests = await Request.find({ status: 'pending' });
@@ -242,11 +242,11 @@ async function processRequestsAI() {
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Reduce inventory units
+        // Deduct inventory
         inventoryItem.units -= request.units;
         await inventoryItem.save();
 
-        // Update corresponding recipient status
+        // Update recipient status
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -265,7 +265,7 @@ async function processRequestsAI() {
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Update corresponding recipient status
+        // Update recipient status
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
