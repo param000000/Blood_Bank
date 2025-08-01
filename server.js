@@ -86,9 +86,17 @@ mongoose.connect(process.env.MONGODB_URI)
 app.get('/api/donors', async (req, res) => {
   try {
     const donors = await Donor.find().sort({ createdAt: -1 });
-    res.json(donors);
+    res.json({
+      success: true,
+      data: donors,
+      count: donors.length
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
@@ -96,12 +104,24 @@ app.post('/api/donors', async (req, res) => {
   try {
     const donor = new Donor(req.body);
     await donor.save();
-    res.status(201).json(donor);
+    res.status(201).json({
+      success: true,
+      message: 'Donor created successfully',
+      data: donor
+    });
   } catch (error) {
     if (error.code === 11000) {
-      res.status(400).json({ error: 'Donor email already exists' });
+      res.status(400).json({
+        success: false,
+        error: 'Donor email already exists',
+        data: null
+      });
     } else {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        data: null
+      });
     }
   }
 });
@@ -110,9 +130,17 @@ app.post('/api/donors', async (req, res) => {
 app.get('/api/recipients', async (req, res) => {
   try {
     const recipients = await Recipient.find().sort({ createdAt: -1 });
-    res.json(recipients);
+    res.json({
+      success: true,
+      data: recipients,
+      count: recipients.length
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
@@ -120,9 +148,17 @@ app.post('/api/recipients', async (req, res) => {
   try {
     const recipient = new Recipient(req.body);
     await recipient.save();
-    res.status(201).json(recipient);
+    res.status(201).json({
+      success: true,
+      message: 'Recipient created successfully',
+      data: recipient
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
@@ -130,9 +166,17 @@ app.post('/api/recipients', async (req, res) => {
 app.get('/api/inventory', async (req, res) => {
   try {
     const inventory = await Inventory.find().sort({ createdAt: -1 });
-    res.json(inventory);
+    res.json({
+      success: true,
+      data: inventory,
+      count: inventory.length
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
@@ -140,9 +184,17 @@ app.post('/api/inventory', async (req, res) => {
   try {
     const item = new Inventory(req.body);
     await item.save();
-    res.status(201).json(item);
+    res.status(201).json({
+      success: true,
+      message: 'Inventory item created successfully',
+      data: item
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
@@ -150,9 +202,17 @@ app.post('/api/inventory', async (req, res) => {
 app.get('/api/requests', async (req, res) => {
   try {
     const requests = await Request.find().sort({ createdAt: -1 });
-    res.json(requests);
+    res.json({
+      success: true,
+      data: requests,
+      count: requests.length
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
@@ -160,13 +220,21 @@ app.post('/api/requests', async (req, res) => {
   try {
     const request = new Request(req.body);
     await request.save();
-    res.status(201).json(request);
+    res.status(201).json({
+      success: true,
+      message: 'Request created successfully',
+      data: request
+    });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(400).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
-// Approve requests
+// Approve/Reject Requests
 app.put('/api/requests/:id/approve', async (req, res) => {
   try {
     const updatedRequest = await Request.findByIdAndUpdate(
@@ -174,13 +242,29 @@ app.put('/api/requests/:id/approve', async (req, res) => {
       { status: 'approved', processedBy: 'Auto Processor' },
       { new: true }
     );
-    res.json(updatedRequest);
+    
+    if (!updatedRequest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+        data: null
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Request approved successfully',
+      data: updatedRequest
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
-// Reject requests
 app.put('/api/requests/:id/reject', async (req, res) => {
   try {
     const updatedRequest = await Request.findByIdAndUpdate(
@@ -188,16 +272,36 @@ app.put('/api/requests/:id/reject', async (req, res) => {
       { status: 'rejected', processedBy: 'Auto Processor' },
       { new: true }
     );
-    res.json(updatedRequest);
+    
+    if (!updatedRequest) {
+      return res.status(404).json({
+        success: false,
+        error: 'Request not found',
+        data: null
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Request rejected successfully',
+      data: updatedRequest
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
-// Load requests helper function
+// --- Helper Functions ---
+
 async function loadRequests() {
   try {
     const pendingRecipients = await Recipient.find({ status: 'pending' });
+    let createdCount = 0;
+    
     for (const recipient of pendingRecipients) {
       const existingRequest = await Request.findOne({
         recipientName: recipient.name,
@@ -206,6 +310,7 @@ async function loadRequests() {
         units: recipient.unitsRequired,
         status: 'pending'
       });
+      
       if (!existingRequest) {
         const newRequest = new Request({
           recipientName: recipient.name,
@@ -217,32 +322,38 @@ async function loadRequests() {
           processedBy: null
         });
         await newRequest.save();
+        createdCount++;
       }
     }
+    
+    return { createdCount };
   } catch (error) {
     console.error('Error loading requests:', error);
+    throw error;
   }
 }
 
-// AI process requests function
 async function processRequestsAI() {
   try {
     const pendingRequests = await Request.find({ status: 'pending' });
-
+    let processedCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
+    
     for (const request of pendingRequests) {
       const inventoryItem = await Inventory.findOne({ bloodType: request.bloodType });
-
+      
       if (inventoryItem && inventoryItem.units >= request.units) {
-        // Approve
+        // Approve request
         request.status = 'approved';
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Update inventory units
+        // Update inventory
         inventoryItem.units -= request.units;
         await inventoryItem.save();
 
-        // Update recipient status
+        // Update recipient
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -252,13 +363,15 @@ async function processRequestsAI() {
           },
           { status: 'approved', processedBy: 'Auto Processor' }
         );
+        
+        approvedCount++;
       } else {
-        // Reject
+        // Reject request
         request.status = 'rejected';
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Update recipient status
+        // Update recipient
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -268,25 +381,44 @@ async function processRequestsAI() {
           },
           { status: 'rejected', processedBy: 'Auto Processor' }
         );
+        
+        rejectedCount++;
       }
+      processedCount++;
     }
+    
+    return { processedCount, approvedCount, rejectedCount };
   } catch (error) {
     console.error('Error processing requests AI:', error);
+    throw error;
   }
 }
 
-// API to trigger load and process
 app.post('/api/load-and-process-requests', async (req, res) => {
   try {
-    await loadRequests();
-    await processRequestsAI();
-    res.json({ message: 'Requests loaded and processed by AI' });
+    const loadResult = await loadRequests();
+    const processResult = await processRequestsAI();
+    
+    res.json({
+      success: true,
+      message: 'Requests loaded and processed by AI',
+      data: {
+        requestsCreated: loadResult.createdCount,
+        requestsProcessed: processResult.processedCount,
+        requestsApproved: processResult.approvedCount,
+        requestsRejected: processResult.rejectedCount
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
 });
 
-// Dashboard stats endpoint
+// Dashboard stats
 app.get('/api/stats', async (req, res) => {
   try {
     const [totalDonors, totalRecipients, inventory, requests] = await Promise.all([
@@ -295,20 +427,98 @@ app.get('/api/stats', async (req, res) => {
       Inventory.find(),
       Request.find()
     ]);
+    
     const pendingRequests = requests.filter(r => r.status === 'pending').length;
+    const approvedRequests = requests.filter(r => r.status === 'approved').length;
+    const rejectedRequests = requests.filter(r => r.status === 'rejected').length;
     const totalUnits = inventory.reduce((sum, item) => sum + item.units, 0);
 
     res.json({
+      success: true,
       data: {
         totalDonors,
         totalRecipients,
         totalUnits,
-        pendingRequests
+        totalRequests: requests.length,
+        pendingRequests,
+        approvedRequests,
+        rejectedRequests,
+        inventory: inventory.map(item => ({
+          bloodType: item.bloodType,
+          units: item.units,
+          expiryDate: item.expiryDate
+        }))
       }
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
   }
+});
+
+// Get individual donor by ID
+app.get('/api/donors/:id', async (req, res) => {
+  try {
+    const donor = await Donor.findById(req.params.id);
+    if (!donor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Donor not found',
+        data: null
+      });
+    }
+    res.json({
+      success: true,
+      data: donor
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
+  }
+});
+
+// Get individual recipient by ID
+app.get('/api/recipients/:id', async (req, res) => {
+  try {
+    const recipient = await Recipient.findById(req.params.id);
+    if (!recipient) {
+      return res.status(404).json({
+        success: false,
+        error: 'Recipient not found',
+        data: null
+      });
+    }
+    res.json({
+      success: true,
+      data: recipient
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: null
+    });
+  }
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Blood Bank API is running',
+    timestamp: new Date().toISOString(),
+    data: {
+      status: 'healthy',
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    }
+  });
 });
 
 // SPA fallback route — must be last
@@ -319,4 +529,4 @@ app.get('*', (req, res) => {
 // --- START SERVER ---
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on https://blood-bank-c6l5.onrender.com/`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

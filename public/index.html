@@ -881,7 +881,7 @@ textarea:focus {
         }
 
         // API Base URL
-        const API_BASE = 'https://blood-bank-c6l5.onrender.com/';
+        const API_BASE = 'https://blood-bank-ol4n.onrender.com';
 
         // Tab Management
         function showTab(tabName) {
@@ -926,62 +926,57 @@ textarea:focus {
 
         // API Request Function
         async function apiRequest(endpoint, method = 'GET', data = null) {
-    const options = {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    };
-
-    if (data) {
-        options.body = JSON.stringify(data);
-    }
-
-    try {
-        const response = await fetch(`${API_BASE}/api${endpoint}`, options);
-
-        let result;
-        const contentType = response.headers.get('content-type');
-
-        if (contentType && contentType.includes('application/json')) {
-            // Response is JSON
-            result = await response.json();
-        } else {
-            // Response is not JSON - likely HTML or text error
-            const text = await response.text();
-            // Log raw text for debugging
-            console.error('Non-JSON response:', text);
-            throw new Error(`Non-JSON response received with status ${response.status}`);
-        }
-
-        console.log('API Response Status:', response.status);
-        console.log('API Response Body:', result);
-
-        if (!response.ok) {
-            // Handle validation errors specifically
-            if (result.details && Array.isArray(result.details)) {
-                const validationErrors = result.details.map(detail => detail.msg).join(', ');
-                throw new Error(`Validation failed: ${validationErrors}`);
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
             }
-            throw new Error(result.error || `HTTP ${response.status}: Request failed`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api${endpoint}`, options);
+                const result = await response.json();
+                
+                console.log('API Response Status:', response.status);
+                console.log('API Response Body:', result);
+                
+                if (!response.ok) {
+                    // Handle the new consistent error format
+                    if (result && !result.success) {
+                        throw new Error(result.error || 'Request failed');
+                    }
+                    // Handle validation errors specifically
+                    if (result.details && Array.isArray(result.details)) {
+                        const validationErrors = result.details.map(detail => detail.msg).join(', ');
+                        throw new Error(`Validation failed: ${validationErrors}`);
+                    }
+                    throw new Error(result.error || `HTTP ${response.status}: Request failed`);
+                }
+                
+                // Return the data from the consistent JSON response format
+                if (result.success && result.data !== undefined) {
+                    return result.data;
+                }
+                
+                // Fallback for endpoints that might not use the new format yet
+                return result;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
         }
-
-        return result;
-    } catch (error) {
-        console.error('API Error:', error);
-        throw error;
-    }
-}
-
 
         // Dashboard Functions
         async function loadDashboard() {
             try {
                 // Use the stats endpoint from your backend
-                const statsResponse = await apiRequest('/stats');
-                const stats = statsResponse.data;
+                const stats = await apiRequest('/stats');
                 
-                // Update dashboard stats
+                // Update dashboard stats with the new response format
                 document.getElementById('totalDonors').textContent = stats.totalDonors;
                 document.getElementById('totalRecipients').textContent = stats.totalRecipients;
                 document.getElementById('totalUnits').textContent = stats.totalUnits;
@@ -1001,13 +996,17 @@ textarea:focus {
                         apiRequest('/inventory')
                     ]);
                     
-                    document.getElementById('totalDonors').textContent = donors.length;
-                    document.getElementById('totalRecipients').textContent = recipients.length;
+                    document.getElementById('totalDonors').textContent = donors.length || 0;
+                    document.getElementById('totalRecipients').textContent = recipients.length || 0;
                     document.getElementById('totalUnits').textContent = inventory.reduce((sum, item) => sum + item.units, 0);
                     
                     displayBloodTypeStats(inventory);
                 } catch (fallbackError) {
                     console.error('Failed to load dashboard with fallback:', fallbackError);
+                    // Set default values if everything fails
+                    document.getElementById('totalDonors').textContent = '0';
+                    document.getElementById('totalRecipients').textContent = '0';
+                    document.getElementById('totalUnits').textContent = '0';
                 }
             }
         }
