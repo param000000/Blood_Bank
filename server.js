@@ -63,10 +63,8 @@ app.use(bodyParser.json());
 
 // --- SERVE FRONTEND ---
 
-// Serve static files from "public" folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve index.html on root "/"
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -195,7 +193,8 @@ app.put('/api/requests/:id/reject', async (req, res) => {
   }
 });
 
-// --- Load requests from recipients (helper) ---
+// --- Helper Functions ---
+
 async function loadRequests() {
   try {
     const pendingRecipients = await Recipient.find({ status: 'pending' });
@@ -225,23 +224,19 @@ async function loadRequests() {
   }
 }
 
-// --- AI Process requests ---
 async function processRequestsAI() {
   try {
     const pendingRequests = await Request.find({ status: 'pending' });
     for (const request of pendingRequests) {
       const inventoryItem = await Inventory.findOne({ bloodType: request.bloodType });
       if (inventoryItem && inventoryItem.units >= request.units) {
-        // Approve
         request.status = 'approved';
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Update inventory
         inventoryItem.units -= request.units;
         await inventoryItem.save();
 
-        // Update recipient status
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -252,12 +247,10 @@ async function processRequestsAI() {
           { status: 'approved', processedBy: 'Auto Processor' }
         );
       } else {
-        // Reject
         request.status = 'rejected';
         request.processedBy = 'Auto Processor';
         await request.save();
 
-        // Update recipient status
         await Recipient.findOneAndUpdate(
           {
             name: request.recipientName,
@@ -274,7 +267,6 @@ async function processRequestsAI() {
   }
 }
 
-// Endpoint to trigger load and process requests
 app.post('/api/load-and-process-requests', async (req, res) => {
   try {
     await loadRequests();
@@ -310,11 +302,12 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// --- SPA fallback route: must be last ---
+// SPA fallback route — must be last
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // --- START SERVER ---
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on https://blood-bank-c6l5.onrender.com/`));
